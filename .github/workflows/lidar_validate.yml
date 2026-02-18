@@ -1,5 +1,8 @@
 name: LIDAR COPC Validation
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +15,11 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
+
+    - name: Generate date string
+      id: date_gen
+      run: |
+        echo "date_str=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
 
     - name: Verify COPC URL
       run: |
@@ -68,8 +76,8 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "lidar-validation-${{ steps.copc_info.outputs.copc_basename }}-$(date +'%Y%m%d%H%M%S')"
-        name: "LIDAR Validation Results for ${{ steps.copc_info.outputs.copc_filename }} ($(date +'%Y-%m-%d %H:%M:%S'))"
+        tag_name: "lidar-validation-${{ steps.copc_info.outputs.copc_basename }}-${{ steps.date_gen.outputs.date_str }}"
+        name: "LIDAR Validation Results for ${{ steps.copc_info.outputs.copc_filename }} (${{ steps.date_gen.outputs.date_str }})"
         body: "Automated validation results archive for ${{ steps.copc_info.outputs.copc_filename }}."
         draft: false
         prerelease: false
