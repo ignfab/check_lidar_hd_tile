@@ -29,14 +29,17 @@ jobs:
         environment-file: environment.yml
         activate-environment: lidar-env
 
+    - name: Conda list
+      shell: bash -el {0}
+      run: conda list
+
     - name: Download COPC file
       run: |
         wget --quiet --retry-connrefused --waitretry=5 --timeout=30 --tries=5 "${{ github.event.inputs.copc_url }}" -O input.copc.laz
 
     - name: Run validation script
+      shell: bash -l {0}
       run: |
-        source "$HOME/miniconda3/etc/profile.d/conda.sh"
-        conda activate lidar-env
         python check_impulsions.py input.copc.laz
 
     - name: Upload CSV artifacts
