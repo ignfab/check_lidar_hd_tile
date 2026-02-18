@@ -12,6 +12,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
+    - name: Enforce only conda-forge channel
+      run: |
+        echo -e "channels:\n  - conda-forge\n  - nodefaults" > ~/.condarc
+
     - name: Verify COPC URL
       run: |
         if [[ ! "${{ github.event.inputs.copc_url }}" =~ \.copc\.laz$ ]]; then
@@ -49,3 +53,28 @@ jobs:
         path: |
           impulsions_inconsistent_NumberOfReturns.csv
           impulsions_count_mismatch.csv
+
+    - name: Find results archive
+      id: find_zip
+      run: |
+        ZIP_FILE=$(ls *_results.zip | head -n 1)
+        echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
+
+    - name: Publish results as generic package
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ZIP_FILE="${{ steps.find_zip.outputs.zip_file }}"
+        if [ -z "$ZIP_FILE" ]; then
+          echo "No results zip file found!"
+          exit 1
+        fi
+        PACKAGE_NAME="${ZIP_FILE%.zip}"
+        VERSION="$(date +'%Y%m%d%H%M%S')"
+        OWNER="${{ github.repository_owner }}"
+        REPO="${{ github.event.repository.name }}"
+        echo "Publishing $ZIP_FILE as $OWNER/$REPO/$PACKAGE_NAME:$VERSION"
+        curl -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "Content-Type: application/zip" \
+          --data-binary @$ZIP_FILE \
+          "https://maven.pkg.github.com/$OWNER/$REPO/$PACKAGE_NAME/$VERSION/$ZIP_FILE"

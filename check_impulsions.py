@@ -1,13 +1,24 @@
+import os
 import pdal
 import numpy as np
 import argparse
+import zipfile
+from datetime import datetime
 
 def main():
+
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Check that for each impulsion (unique gps_time) in a COPC.laz file, the number of points matches NumberOfReturns.")
     parser.add_argument("input_file", help="Path to the COPC.laz file")
     args = parser.parse_args()
     file_path = args.input_file
+    base = os.path.basename(file_path)
+    if base.endswith('.copc.laz'):
+        base = base[:-9]
+    else:
+        base = os.path.splitext(base)[0]
+    inconsistent_csv = f"inconsistent_NumberOfReturns_{base}.csv"
+    count_mismatch_csv = f"count_mismatch_{base}.csv"
 
     # Build and execute a PDAL pipeline to read the COPC.laz file
     pipeline_json = f"""
@@ -63,19 +74,26 @@ def main():
                 'NumberOfReturns': int(unique_returns[0])
             })
 
-    # Write CSV files for each error case
-    if inconsistent_details:
-        with open('impulsions_inconsistent_NumberOfReturns.csv', 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=['gps_time', 'n_points', 'unique_NumberOfReturns'])
-            writer.writeheader()
-            for row in inconsistent_details:
-                writer.writerow(row)
-    if count_mismatch_details:
-        with open('impulsions_count_mismatch.csv', 'w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=['gps_time', 'n_points', 'NumberOfReturns'])
-            writer.writeheader()
-            for row in count_mismatch_details:
-                writer.writerow(row)
+    def write_csv(filename, fieldnames, rows):
+        if rows:
+            with open(filename, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow(row)
+
+    write_csv(inconsistent_csv, ['gps_time', 'n_points', 'unique_NumberOfReturns'], inconsistent_details)
+    write_csv(count_mismatch_csv, ['gps_time', 'n_points', 'NumberOfReturns'], count_mismatch_details)
+
+    # Create a zip archive containing the CSVs, with filename and datetime in the archive name
+    now_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    archive_name = f"{base}_{now_str}_results.zip"
+    with zipfile.ZipFile(archive_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        if inconsistent_details:
+            zipf.write(inconsistent_csv)
+        if count_mismatch_details:
+            zipf.write(count_mismatch_csv)
+    print(f"Created archive: {archive_name}")
 
     # Output the result: percentage of impulsions for each error type
     if inconsistent_returns == 0 and count_mismatch == 0:
@@ -83,8 +101,8 @@ def main():
     else:
         percent_inconsistent = 100.0 * inconsistent_returns / total if total > 0 else 0.0
         percent_count_mismatch = 100.0 * count_mismatch / total if total > 0 else 0.0
-        print(f"{percent_inconsistent:.2f}% of impulsions have inconsistent NumberOfReturns (see 'impulsions_inconsistent_NumberOfReturns.csv').")
-        print(f"{percent_count_mismatch:.2f}% of impulsions have a count mismatch compared to NumberOfReturns (see 'impulsions_count_mismatch.csv').")
+        print(f"{percent_inconsistent:.2f}% of impulsions have inconsistent NumberOfReturns (see '{inconsistent_csv}').")
+        print(f"{percent_count_mismatch:.2f}% of impulsions have a count mismatch compared to NumberOfReturns (see '{count_mismatch_csv}').")
 
 if __name__ == "__main__":
     main()
