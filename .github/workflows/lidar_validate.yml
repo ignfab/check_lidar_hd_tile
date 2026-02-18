@@ -19,7 +19,7 @@ jobs:
     - name: Generate date string
       id: date_gen
       run: |
-        echo "date_str=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        echo "date_str=$(date +'%Y-%m-%d_%Hh%Mm%Ss')" >> $GITHUB_OUTPUT
 
     - name: Verify COPC URL
       run: |
@@ -72,8 +72,7 @@ jobs:
         ZIP_FILE=$(ls *_results.zip | head -n 1)
         echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
 
-    - name: Create GitHub Release
-      id: create_release
+    - name: Create GitHub Release and upload results archive
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "lidar-validation-${{ steps.copc_info.outputs.copc_basename }}-${{ steps.date_gen.outputs.date_str }}"
@@ -81,13 +80,6 @@ jobs:
         body: "Automated validation results archive for ${{ steps.copc_info.outputs.copc_filename }}."
         draft: false
         prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload results archive to release
-      uses: softprops/action-gh-release@v2
-      with:
         files: ${{ steps.find_zip.outputs.zip_file }}
-        tag_name: ${{ steps.create_release.outputs.tag_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
