@@ -1,0 +1,40 @@
+name: LIDAR COPC Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      copc_url:
+        description: 'URL to COPC.laz file'
+        required: true
+        type: string
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        auto-update-conda: true
+        python-version: '3.12'
+        environment-file: environment.yml
+        activate-environment: lidar-env
+
+    - name: Download COPC file
+      run: |
+        wget --retry-connrefused --waitretry=5 --timeout=30 --tries=5 "${{ github.event.inputs.copc_url }}" -O input.copc.laz
+
+    - name: Run validation script
+      run: |
+        python check_impulsions.py input.copc.laz
+
+    - name: Upload CSV artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: validation-results
+        path: |
+          impulsions_inconsistent_NumberOfReturns.csv
+          impulsions_count_mismatch.csv

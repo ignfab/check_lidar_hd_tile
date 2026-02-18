@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Conda environment
+.env/
+.venv/
+
+# CSV outputs
+impulsions_inconsistent_NumberOfReturns.csv
+impulsions_count_mismatch.csv
+
+# VS Code
+.vscode/
+
+# GitHub Actions
+*.log
+
+# Copc files
+*.copc.laz
+
+# Misc
+*.tmp
+*.bak

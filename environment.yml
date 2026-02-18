@@ -1,0 +1,10 @@
+name: lidar-env
+channels:
+- conda-forge
+dependencies:
+- python=3.12
+- pdal
+- numpy
+- pip
+- pip:
+  - argparse
