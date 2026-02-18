@@ -1,4 +1,5 @@
 import os
+import csv
 import pdal
 import numpy as np
 import argparse
@@ -45,7 +46,6 @@ def main():
     group_starts = np.concatenate(([0], boundaries))
     group_ends = np.concatenate((boundaries, [len(gps_times_sorted)]))
 
-    import csv
     # Lists to store error details
     inconsistent_details = []
     count_mismatch_details = []
@@ -85,7 +85,32 @@ def main():
     write_csv(inconsistent_csv, ['gps_time', 'n_points', 'unique_NumberOfReturns'], inconsistent_details)
     write_csv(count_mismatch_csv, ['gps_time', 'n_points', 'NumberOfReturns'], count_mismatch_details)
 
-    # Create a zip archive containing the CSVs, with filename and datetime in the archive name
+    # Prepare report content and filename
+    report_lines = []
+    report_base = base
+    report_filename = f"report_{report_base}.txt"
+
+    # Output the result: percentage of impulsions for each error type
+    if inconsistent_returns == 0 and count_mismatch == 0:
+        msg = "All impulsions have correct number of points and consistent NumberOfReturns."
+        print(msg)
+        report_lines.append(msg)
+    else:
+        percent_inconsistent = 100.0 * inconsistent_returns / total if total > 0 else 0.0
+        percent_count_mismatch = 100.0 * count_mismatch / total if total > 0 else 0.0
+        msg1 = f"{percent_inconsistent:.2f}% of impulsions have inconsistent NumberOfReturns (see '{inconsistent_csv}')."
+        msg2 = f"{percent_count_mismatch:.2f}% of impulsions have a count mismatch compared to NumberOfReturns (see '{count_mismatch_csv}')."
+        print(msg1)
+        print(msg2)
+        report_lines.append(msg1)
+        report_lines.append(msg2)
+
+    # Write the report file
+    with open(report_filename, 'w') as f:
+        for line in report_lines:
+            f.write(line + '\n')
+
+    # Create a zip archive containing the CSVs and the report, with filename and datetime in the archive name
     now_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     archive_name = f"{base}_{now_str}_results.zip"
     with zipfile.ZipFile(archive_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -93,16 +118,13 @@ def main():
             zipf.write(inconsistent_csv)
         if count_mismatch_details:
             zipf.write(count_mismatch_csv)
+        zipf.write(report_filename)
     print(f"Created archive: {archive_name}")
 
-    # Output the result: percentage of impulsions for each error type
-    if inconsistent_returns == 0 and count_mismatch == 0:
-        print("All impulsions have correct number of points and consistent NumberOfReturns.")
-    else:
-        percent_inconsistent = 100.0 * inconsistent_returns / total if total > 0 else 0.0
-        percent_count_mismatch = 100.0 * count_mismatch / total if total > 0 else 0.0
-        print(f"{percent_inconsistent:.2f}% of impulsions have inconsistent NumberOfReturns (see '{inconsistent_csv}').")
-        print(f"{percent_count_mismatch:.2f}% of impulsions have a count mismatch compared to NumberOfReturns (see '{count_mismatch_csv}').")
+    # Clean up CSV and TXT files after archiving
+    for f in [inconsistent_csv, count_mismatch_csv, report_filename]:
+        if os.path.exists(f):
+            os.remove(f)
 
 if __name__ == "__main__":
     main()

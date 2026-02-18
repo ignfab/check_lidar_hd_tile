@@ -39,42 +39,43 @@ jobs:
 
     - name: Download COPC file
       run: |
-        wget --quiet --retry-connrefused --waitretry=5 --timeout=30 --tries=5 "${{ github.event.inputs.copc_url }}" -O input.copc.laz
+        url="${{ github.event.inputs.copc_url }}"
+        filename="${url##*/}"
+        wget --quiet --retry-connrefused --waitretry=5 --timeout=30 --tries=5 "$url" -O "$filename"
 
     - name: Run validation script
       shell: bash -l {0}
       run: |
         python check_impulsions.py input.copc.laz
 
-    - name: Upload CSV artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: validation-results
-        path: |
-          impulsions_inconsistent_NumberOfReturns.csv
-          impulsions_count_mismatch.csv
-
-    - name: Find results archive
+    - name: Find results archive and set filename var
       id: find_zip
       run: |
         ZIP_FILE=$(ls *_results.zip | head -n 1)
         echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
+        # Extract the original COPC filename from the URL
+        URL="${{ github.event.inputs.copc_url }}"
+        FILENAME="${URL##*/}"
+        BASENAME="${FILENAME%.copc.laz}"
+        echo "copc_filename=$FILENAME" >> $GITHUB_OUTPUT
+        echo "copc_basename=$BASENAME" >> $GITHUB_OUTPUT
 
-    - name: Publish results as generic package
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "lidar-validation-${{ steps.find_zip.outputs.copc_basename }}-$(date +'%Y%m%d%H%M%S')"
+        name: "LIDAR Validation Results for ${{ steps.find_zip.outputs.copc_filename }} ($(date +'%Y-%m-%d %H:%M:%S'))"
+        body: "Automated validation results archive for ${{ steps.find_zip.outputs.copc_filename }}."
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        ZIP_FILE="${{ steps.find_zip.outputs.zip_file }}"
-        if [ -z "$ZIP_FILE" ]; then
-          echo "No results zip file found!"
-          exit 1
-        fi
-        PACKAGE_NAME="${ZIP_FILE%.zip}"
-        VERSION="$(date +'%Y%m%d%H%M%S')"
-        OWNER="${{ github.repository_owner }}"
-        REPO="${{ github.event.repository.name }}"
-        echo "Publishing $ZIP_FILE as $OWNER/$REPO/$PACKAGE_NAME:$VERSION"
-        curl -X PUT -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -H "Content-Type: application/zip" \
-          --data-binary @$ZIP_FILE \
-          "https://maven.pkg.github.com/$OWNER/$REPO/$PACKAGE_NAME/$VERSION/$ZIP_FILE"
+
+    - name: Upload results archive to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{ steps.find_zip.outputs.zip_file }}
+        tag_name: ${{ steps.create_release.outputs.tag_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
