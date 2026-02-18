@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import pdal
 import numpy as np
 import argparse
@@ -13,6 +14,13 @@ def main():
     parser.add_argument("input_file", help="Path to the COPC.laz file")
     args = parser.parse_args()
     file_path = args.input_file
+    
+    # Security: Validate file path to prevent path traversal
+    file_path = os.path.abspath(file_path)
+    if not os.path.isfile(file_path):
+        raise ValueError(f"File does not exist: {file_path}")
+    if '..' in os.path.relpath(file_path):
+        raise ValueError("Path traversal detected in file path")
     base = os.path.basename(file_path)
     if base.endswith('.copc.laz'):
         base = base[:-9]
@@ -22,11 +30,9 @@ def main():
     count_mismatch_csv = f"count_mismatch_{base}.csv"
 
     # Build and execute a PDAL pipeline to read the COPC.laz file
-    pipeline_json = f"""
-    [
-        "{file_path}"
-    ]
-    """
+    # Security: Use json.dumps to properly escape the file path and prevent JSON injection
+    pipeline_config = [file_path]
+    pipeline_json = json.dumps(pipeline_config)
     pipeline = pdal.Pipeline(pipeline_json)
     pipeline.execute()
     arr = pipeline.arrays[0]  # Get the point data as a NumPy structured array

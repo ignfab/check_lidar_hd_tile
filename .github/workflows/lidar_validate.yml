@@ -23,7 +23,14 @@ jobs:
 
     - name: Verify COPC URL
       run: |
-        if [[ ! "${{ github.event.inputs.copc_url }}" =~ \.copc\.laz$ ]]; then
+        URL="${{ github.event.inputs.copc_url }}"
+        # Security: Validate URL protocol (only allow https)
+        if [[ ! "$URL" =~ ^https:// ]]; then
+          echo "Error: Only HTTPS URLs are allowed"
+          exit 1
+        fi
+        # Validate URL ends with .copc.laz
+        if [[ ! "$URL" =~ \.copc\.laz$ ]]; then
           echo "Error: Provided URL does not end with .copc.laz"
           exit 1
         fi
@@ -33,6 +40,11 @@ jobs:
       run: |
         URL="${{ github.event.inputs.copc_url }}"
         FILENAME="${URL##*/}"
+        # Security: Validate filename contains only safe characters
+        if [[ ! "$FILENAME" =~ ^[a-zA-Z0-9._-]+\.copc\.laz$ ]]; then
+          echo "Error: Filename contains unsafe characters. Only alphanumeric, dots, hyphens, and underscores are allowed."
+          exit 1
+        fi
         BASENAME="${FILENAME%.copc.laz}"
         echo "copc_filename=$FILENAME" >> $GITHUB_OUTPUT
         echo "copc_basename=$BASENAME" >> $GITHUB_OUTPUT
