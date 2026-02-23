@@ -104,8 +104,8 @@ def main():
     else:
         percent_inconsistent = 100.0 * inconsistent_returns / total if total > 0 else 0.0
         percent_count_mismatch = 100.0 * count_mismatch / total if total > 0 else 0.0
-        msg1 = f"{percent_inconsistent:.2f}% of impulsions have inconsistent NumberOfReturns (see '{inconsistent_csv}')."
-        msg2 = f"{percent_count_mismatch:.2f}% of impulsions have a count mismatch compared to NumberOfReturns (see '{count_mismatch_csv}')."
+        msg1 = f"{percent_inconsistent:.8f}% of impulsions have inconsistent NumberOfReturns (see '{inconsistent_csv}')."
+        msg2 = f"{percent_count_mismatch:.8f}% of impulsions have a count mismatch compared to NumberOfReturns (see '{count_mismatch_csv}')."
         print(msg1)
         print(msg2)
         report_lines.append(msg1)
